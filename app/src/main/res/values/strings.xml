@@ -1,0 +1,42 @@
+<resources>
+    <string name="app_name">Emmy Demo</string>
+    <string name="app_name_long">Emmy Demonstration</string>
+    <string name="title_activity_settings">Settings</string>
+    <string name="title_activity_transfer_credential">Transfer anonymous credential</string>
+    <string name="title_activity_get_anonymous_credential">Get anonymous credential</string>
+
+    <string name="choose_example">Choose example for demonstration</string>
+    <string name="example_psys">Pseudonym system</string>
+    <string name="example_psys_ec">Pseudonym system (EC)</string>
+
+    <string name="current_ip">&lt;None&gt;</string>
+    <string name="current_ip_desc">Currently configured IP:</string>
+
+    <!-- Strings related to Settings -->
+    <string name="settings">Settings</string>
+    <string name="pref_title_server_ip">Server IP</string>
+    <string name="pref_description_server_ip">Public IP address of Emmy server</string>
+    <string name="pref_placeholder_server_ip">92.211.255.57</string>
+
+    <!-- Strings related to the demonstration of pseudonym system -->
+    <string name="psys_title">Pseudonym system demo</string>
+    <string name="psys_get_anonymous_credential">Get anonymous credential</string>
+    <string name="psys_transfer_credential">Transfer credential</string>
+    <string name="psys_get_cert">Get certificate</string>
+    <string name="psys_get_cert_description">To begin we first have to contact the CA to check
+        whether you are registered in the Blockstack blockchain.
+    </string>
+    <!--
+    <string-array name="pref_example_list_titles">
+        <item>Always</item>
+        <item>When possible</item>
+        <item>Never</item>
+    </string-array>
+    <string-array name="pref_example_list_values">
+        <item>1</item>
+        <item>0</item>
+        <item>-1</item>
+    </string-array>
+   -->
+
+</resources>
