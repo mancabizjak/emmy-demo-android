@@ -1,34 +1,40 @@
 package si.xlab.research.emmy.demo.activities;
 
+import android.app.Activity;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 
-import compatibility.CACertificate;
-import compatibility.CACertificateEC;
-import compatibility.Compatibility;
-import compatibility.Connection;
-import compatibility.ConnectionConfig;
-import compatibility.Credential;
-import compatibility.CredentialEC;
-import compatibility.ECGroupElement;
-import compatibility.Logger;
-import compatibility.OrgPubKeys;
-import compatibility.OrgPubKeysEC;
-import compatibility.Pseudonym;
-import compatibility.PseudonymEC;
-import compatibility.PseudonymsysCAClient;
-import compatibility.PseudonymsysCAClientEC;
-import compatibility.PseudonymsysClient;
-import compatibility.PseudonymsysClientEC;
-import compatibility.ServiceInfo;
+import compat.CACertificate;
+import compat.CACertificateEC;
+import compat.CLAttrs;
+import compat.CLClient;
+import compat.CLCredManager;
+import compat.CLOrgPubKey;
+import compat.CLParams;
+import compat.Compat;
+import compat.Connection;
+import compat.ConnectionConfig;
+import compat.Credential;
+import compat.CredentialEC;
+import compat.ECGroupElement;
+import compat.Logger;
+import compat.PubKey;
+import compat.PubKeyEC;
+import compat.Pseudonym;
+import compat.PseudonymEC;
+import compat.PseudonymsysCAClient;
+import compat.PseudonymsysCAClientEC;
+import compat.PseudonymsysClient;
+import compat.PseudonymsysClientEC;
+import compat.SchnorrGroup;
+import compat.ServiceInfo;
 import si.xlab.research.emmy.demo.R;
 
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
-    private static final String verifierURL = "<emmyServerIp>:7007";
+    private static final String verifierURL = "172.16.118.237:7007";
     private static final String caCert = "-----BEGIN CERTIFICATE-----\n" +
             "MIIDezCCAmOgAwIBAgIJALHmT2Ucq7LCMA0GCSqGSIb3DQEBCwUAMFQxCzAJBgNV\n" +
             "BAYTAlNJMREwDwYDVQQIDAhTbG92ZW5pYTENMAsGA1UECgwERW1teTEPMA0GA1UE\n" +
@@ -61,10 +67,10 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        cfg = new ConnectionConfig(verifierURL, "localhost", caCert.getBytes());
+        cfg = new ConnectionConfig(verifierURL, "localhost", caCert.getBytes(), 500);
         try {
-            Logger debugLogger = new Logger(Compatibility.DEBUG);
-            Compatibility.setLogger(debugLogger);
+            Logger debugLogger = new Logger(Compat.DEBUG);
+            Compat.setLogger(debugLogger);
 
             conn = new Connection(cfg);
         } catch (Exception e) {
@@ -72,11 +78,22 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
         }
 
+        findViewById(R.id.button_example_cl).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                try {
+                    doCL();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
         findViewById(R.id.button_example_psys).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
             try {
-                introduceVerifier();
+                //introduceVerifier();
                 doPseudonymsys();
             } catch (Exception e) {
                 e.printStackTrace();
@@ -96,18 +113,35 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    void introduceVerifier() throws Exception {
-        ServiceInfo info = Compatibility.getServiceInfo(conn);
-        Log.i("introduceVerifier", info.getName() + " " + info.getDescription() + " " + info.getProvider());
+    void doCL() throws Exception {
+        CLOrgPubKey pk = new CLOrgPubKey();
+        byte[] secret = pk.getUserMasterSecret();
+        CLParams params = Compat.getCLDefaultParams();
+        CLAttrs attrs = new CLAttrs();
+
+        CLCredManager cm = new CLCredManager(params, pk, secret, attrs);
+
+        //CLClient c = new CLClient(conn);
     }
 
+    /*void introduceVerifier() throws Exception {
+        ServiceInfo info = compat.getServiceInfo(conn);
+        Log.i("introduceVerifier", info.getName() + " " + info.getDescription() + " " + info.getProvider());
+    }*/
+
     void doPseudonymsys() throws Exception {
+        // Construct Schnorr group
+        String p = "16714772973240639959372252262788596420406994288943442724185217359247384753656472309049760952976644136858333233015922583099687128195321947212684779063190875332970679291085543110146729439665070418750765330192961290161474133279960593149307037455272278582955789954847238104228800942225108143276152223829168166008095539967222363070565697796008563529948374781419181195126018918350805639881625937503224895840081959848677868603567824611344898153185576740445411565094067875133968946677861528581074542082733743513314354002186235230287355796577107626422168586230066573268163712626444511811717579062108697723640288393001520781671";
+        String g = "13435884250597730820988673213378477726569723275417649800394889054421903151074346851880546685189913185057745735207225301201852559405644051816872014272331570072588339952516472247887067226166870605704408444976351128304008060633104261817510492686675023829741899954314711345836179919335915048014505501663400445038922206852759960184725596503593479528001139942112019453197903890937374833630960726290426188275709258277826157649744326468681842975049888851018287222105796254410594654201885455104992968766625052811929321868035475972753772676518635683328238658266898993508045858598874318887564488464648635977972724303652243855656";
+        String q = "98208916160055856584884864196345443685461747768186057136819930381973920107591";
+        SchnorrGroup group = new SchnorrGroup(p, g, q);
+
         // Generate master secret and master pseudonym
-        PseudonymsysClient org1 = new PseudonymsysClient(conn);
+        PseudonymsysClient org1 = new PseudonymsysClient(conn, group);
         String secret = org1.generateMasterKey();
 
         // Get a CA certificate
-        PseudonymsysCAClient ca = new PseudonymsysCAClient(conn);
+        PseudonymsysCAClient ca = new PseudonymsysCAClient(group);
         Pseudonym masterNym = ca.generateMasterNym(secret);
         CACertificate caCertA = ca.generateCertificate(secret, masterNym);
         Pseudonym nym = org1.generateNym(secret, caCertA, "mock");
@@ -115,12 +149,12 @@ public class MainActivity extends AppCompatActivity {
         // Register with org1 and obtain credentials for logging in with org1
         String orgH1 = "11253748020267515701977135421640400742511414782332660443524776235731592618314865082641495270379529602832564697632543178140373575666207325449816651443326295587329200580969897900340682863137274403743213121482058992744156278265298975875832815615008349379091580640663544863825594755871212120449589876097254391036951735135790415340694042060640287135597503154554767593490141558733646631257590898412097094878970047567251318564175378758713497120310233239160479122314980866111775954564694480706227862890375180173977176588970220883117212300621045744043530072238840577201003052170999723878986905807102656657527667244456412473985";
         String orgH2 = "76168773256070905782197510623595125058465077612447809025568517977679494145178174622864958684725961070073576803345724904501942931513809178875449022568661712955904784104680061168715431907736821341951579763867969478146743783132963349845621343504647834967006527983684679901491401571352045358450346417143743546169924539113192750473927517206655311791719866371386836092309758541857984471638917674114075906273800379335165008797874367104743232737728633294061064784890416168238586934819945486226202990710177343797354424869474259809902990704930592533690341526792158132580375587182781640673464871125845158432761445006356929132";
-        OrgPubKeys orgPubKeys = new OrgPubKeys(orgH1, orgH2);
+        PubKey orgPubKeys = new PubKey(orgH1, orgH2);
         Credential credential = org1.obtainCredential(secret, nym, orgPubKeys);
         Log.i("doPseudonymSys", "Obtained Anonymous Credential for authentication with organization A " + credential.toString());
 
         // Transfer credentials of org1 to org2
-        PseudonymsysClient org2 = new PseudonymsysClient(conn);
+        PseudonymsysClient org2 = new PseudonymsysClient(conn, group);
         String sessionKey = org2.transferCredential("org1", secret, nym, credential);
         Log.i("doPseudonymSys", "Transferred Anonymous Credential for authentication with organization A, authenticated with organization B: " + sessionKey);
     }
@@ -129,14 +163,14 @@ public class MainActivity extends AppCompatActivity {
         Log.d("doPseudonymSysEC", "Starting...");
 
         // Only this curve will work by default, because it is the one used by emmy server
-        long curve = Compatibility.P256;
+        long curve = Compat.P256;
 
         // Generate master secret and master PseudonymsysClientEC
         PseudonymsysClientEC org1 = new PseudonymsysClientEC(conn, curve);
         String secret = org1.generateMasterKey();
 
         // Get a CA certificate
-        PseudonymsysCAClientEC ca = new PseudonymsysCAClientEC(conn, curve);
+        PseudonymsysCAClientEC ca = new PseudonymsysCAClientEC(curve);
         PseudonymEC masterNym = ca.generateMasterNym(secret, curve);
         CACertificateEC cert = ca.generateCertificate(secret, masterNym);
 
@@ -144,7 +178,7 @@ public class MainActivity extends AppCompatActivity {
         PseudonymEC nym = org1.generateNym(secret, cert, "mock");
         ECGroupElement a = new ECGroupElement("111843344654618029419055700569023289100199029635186896671499163057944727230", "63726701293868334061084235330967878003056898720773299094696019482924813137111");
         ECGroupElement b = new ECGroupElement("3836882559946612606724713122432195411371871189052450829349314418954131635804", "87187568403836989661029612226711448246955830180833597642485083706252921915098");
-        OrgPubKeysEC orgPubKeys = new OrgPubKeysEC(a, b);
+        PubKeyEC orgPubKeys = new PubKeyEC(a, b);
         CredentialEC credential = org1.obtainCredential(secret, nym, orgPubKeys);
 
         // Transfer credentials of org1 to org2

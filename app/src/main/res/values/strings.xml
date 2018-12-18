@@ -8,6 +8,7 @@
     <string name="choose_example">Choose example for demonstration</string>
     <string name="example_psys">Pseudonym system</string>
     <string name="example_psys_ec">Pseudonym system (EC)</string>
+    <string name="example_cl">CL</string>
 
     <string name="current_ip">&lt;None&gt;</string>
     <string name="current_ip_desc">Currently configured IP:</string>

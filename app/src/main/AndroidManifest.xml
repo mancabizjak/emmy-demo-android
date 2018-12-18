@@ -18,13 +18,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name="si.xlab.research.emmy.demo.activities.SettingsActivity"
-            android:label="@string/title_activity_settings" />
-        <activity android:name=".activities.AnonymousCredentialActivity" />
-        <activity android:name="si.xlab.research.emmy.demo.activities.AnonymousCredentialActivity" />
-        <activity android:name="si.xlab.research.emmy.demo.activities.GetCredentialActivity" />
-        <activity android:name="si.xlab.research.emmy.demo.activities.ExampleActivity" />
     </application>
 
 </manifest>
