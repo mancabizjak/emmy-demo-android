@@ -4,14 +4,22 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.Toast;
 
+import java.math.BigInteger;
+
+import compat.Attr;
+import compat.Attrs;
 import compat.CACertificate;
 import compat.CACertificateEC;
 import compat.CLAttrs;
 import compat.CLClient;
+import compat.CLCred;
 import compat.CLCredManager;
-import compat.CLOrgPubKey;
+import compat.CLCredManagerState;
+import compat.CLPubKey;
 import compat.CLParams;
+import compat.CLPublicParams;
 import compat.Compat;
 import compat.Connection;
 import compat.ConnectionConfig;
@@ -31,10 +39,12 @@ import compat.SchnorrGroup;
 import compat.ServiceInfo;
 import si.xlab.research.emmy.demo.R;
 
+import static compat.Compat.restoreCLCredManager;
+
 
 public class MainActivity extends Activity {
 
-    private static final String verifierURL = "172.16.118.237:7007";
+    private static final String verifierURL = "172.16.118.222:7007";
     private static final String caCert = "-----BEGIN CERTIFICATE-----\n" +
             "MIIDezCCAmOgAwIBAgIJALHmT2Ucq7LCMA0GCSqGSIb3DQEBCwUAMFQxCzAJBgNV\n" +
             "BAYTAlNJMREwDwYDVQQIDAhTbG92ZW5pYTENMAsGA1UECgwERW1teTEPMA0GA1UE\n" +
@@ -73,8 +83,10 @@ public class MainActivity extends Activity {
             Compat.setLogger(debugLogger);
 
             conn = new Connection(cfg);
+            doCL();
         } catch (Exception e) {
-            Log.d("getConnection", "Error getting connection");
+            Toast.makeText(this, "Error establishing connection to emmy server", Toast.LENGTH_LONG).show();
+            Log.e("getConnection", "Error getting connection");
             e.printStackTrace();
         }
 
@@ -111,17 +123,82 @@ public class MainActivity extends Activity {
             }
             }
         });
+
     }
 
     void doCL() throws Exception {
-        CLOrgPubKey pk = new CLOrgPubKey();
-        byte[] secret = pk.getUserMasterSecret();
-        CLParams params = Compat.getCLDefaultParams();
-        CLAttrs attrs = new CLAttrs();
+        String TAG = "CL";
 
-        CLCredManager cm = new CLCredManager(params, pk, secret, attrs);
+        if (conn != null) {
+            Log.d(TAG, "Connection to emmy server is established, continuting...");
+            // For communication with emmy server via gRPC
+            CLClient c = new CLClient(conn);
 
-        //CLClient c = new CLClient(conn);
+            // ------------------------------------
+            // Part 1 - obtain public configuration
+            // ------------------------------------
+            // server announces its public parameters, client retrieves them via RPC call
+            CLPublicParams pp = c.getPublicParams();
+            CLPubKey pubKey = pp.getPubKey(); // organization's public key
+            CLParams schemeParams = pp.getConfig(); // crypto parameters for the scheme
+
+            // ----------------------------------------------
+            // Part 2 - derive & securely store master secret
+            // ----------------------------------------------
+            // This is done only once, before starting registration
+            // The same secret is used for all subsequent communication with emmy server
+            byte[] secret = pubKey.generateMasterSecret();
+            // TODO store secret
+
+            // ---------------------------------------------------------------------
+            // Part 3 - fill in the attributes to be encoded in anonymous credential
+            // ---------------------------------------------------------------------
+            // TODO attributes here will be int or string type
+            // TODO add StringAttr, BigIntAttr, IntAttr, etc...if required
+            // Currently we only store big integer types passed accross the language boundary
+            // as byte arrays
+            Attr a1 = new Attr("time_from", new BigInteger("1234567790").toByteArray());
+            Attr a2 = new Attr("time_to", new BigInteger("9999999999999").toByteArray());
+
+            // Compose known attributes
+            // TODO add check for length, to prevent panics bc. of misconfiguration
+            Attrs known = new Attrs();
+            known.add(a1);
+            known.add(a2);
+
+            CLAttrs attrs = new CLAttrs(known, null, null);
+
+
+            // ---------------------------------------
+            // Part 3 - instantiate credential manager
+            // ---------------------------------------
+            // Credential manager is used for all crypto protocols (issue credential in registration
+            // and prove credential in validation)
+            CLCredManager cm = new CLCredManager(schemeParams, pubKey, secret, attrs);
+
+            // Registration (done once)
+            Log.d(TAG, "Starting issue credential...");
+            CLCred cred = c.issueCred(cm, "abc");
+            Log.d(TAG, "Issue credential done.");
+
+            // Validation (multiple times with the same secret, credential)
+            Log.d(TAG, "Starting proof of credential...");
+            String sessionKey = c.proveCred(cm, cred, known);
+            Log.d(TAG, "Proof of credential done. [SessionKey] = " + sessionKey);
+
+            Log.i(TAG, "Saving the state of credential manager");
+            CLCredManagerState cmState = cm.getState();
+            //TODO record the state in DB
+
+            Log.i(TAG, "Restoring credential manager from a previous state");
+            CLCredManager restored = restoreCLCredManager(cmState, secret, attrs);
+
+            Log.d(TAG, "Starting proof of credential from the restored credential manager...");
+            sessionKey = c.proveCred(cm, cred, known);
+            Log.d(TAG, "Proof of credential done. [SessionKey] = " + sessionKey);
+        } else {
+            Log.e(TAG, "Connection could not be established");
+        }
     }
 
     /*void introduceVerifier() throws Exception {
